@@ -125,13 +125,6 @@ parts:
 assumes:
   - snapd2.43
 
-hooks:
-  configure:
-    command-chain:
-      - snap/command-chain/hooks-configure-fonts
-    plugs:
-      - desktop
-
 plugs:
   run-provd-socket:
     interface: system-files
