@@ -32,7 +32,6 @@ apps:
       - wayland
       - x11
     command-chain:
-      - snap/command-chain/gpu-2404-wrapper
       - snap/command-chain/desktop-launch
 
 parts:
@@ -115,21 +114,6 @@ parts:
       - zip
     override-prime: ""
 
-  gnome-gpu-wrapper:
-    source: /snap/snapcraft/19108/share/snapcraft/extensions/gpu/command-chain
-    plugin: make
-    make-parameters:
-      - GPU_INTERFACE=gpu-2404
-
-  gnome-gpu-cleanup:
-    after: [ubuntu-desktop-init, metadata, flutter-git]
-    source: https://github.com/canonical/gpu-snap.git
-    plugin: nil
-    override-prime: |
-      craftctl default
-      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404
-      mkdir -p "${CRAFT_PRIME}/gpu-2404"
-
   gnome-sdk:
     source: /snap/snapcraft/19108/share/snapcraft/extensions/desktop/command-chain
     plugin: make
@@ -148,22 +132,6 @@ hooks:
     plugs:
       - desktop
 
-layout:
-  /usr/share/libdrm:
-    bind: $SNAP/gpu-2404/libdrm
-  /usr/share/drirc.d:
-    symlink: $SNAP/gpu-2404/drirc.d
-  /usr/share/X11/XErrorDB:
-    symlink: $SNAP/gpu-2404/X11/XErrorDB
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.0:
-    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.0
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1:
-    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy:
-    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy
-  /usr/share/xml/iso-codes:
-    bind: $SNAP/gnome-platform/usr/share/xml/iso-codes
-
 plugs:
   run-provd-socket:
     interface: system-files
@@ -180,10 +148,6 @@ plugs:
   desktop:
     interface: desktop
     mount-host-font-cache: false
-  gpu-2404:
-    interface: content
-    target: $SNAP/gpu-2404
-    default-provider: mesa-2404
   gtk-3-themes:
     interface: content
     target: $SNAP/data-dir/themes
@@ -196,15 +160,6 @@ plugs:
     interface: content
     target: $SNAP/data-dir/sounds
     default-provider: gtk-common-themes
-  gnome-46-2404:
-    interface: content
-    target: $SNAP/gnome-platform
-    default-provider: gnome-46-2404
-
-environment:
-  SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform
-  GTK_USE_PORTAL: '1'
-
 slots:
   dbus-name:
     interface: dbus
