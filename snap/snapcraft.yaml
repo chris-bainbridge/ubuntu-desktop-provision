@@ -6,7 +6,8 @@ description: |
   It comprises a Flutter-based UI and a go backend packaged separately as a deb.
 grade: stable
 confinement: strict
-base: core24
+base: bare
+build-base: core26
 platforms:
   amd64:
   arm64:
@@ -14,7 +15,6 @@ platforms:
 apps:
   ubuntu-desktop-init:
     command: bin/ubuntu_init
-    extensions: [gnome]
     desktop: usr/share/applications/ubuntu-desktop-init.desktop
     environment:
       LOG_LEVEL: debug
@@ -25,6 +25,15 @@ apps:
       - network
       - network-manager
       - var-log-installer
+      - desktop
+      - desktop-legacy
+      - gsettings
+      - opengl
+      - wayland
+      - x11
+    command-chain:
+      - snap/command-chain/gpu-2404-wrapper
+      - snap/command-chain/desktop-launch
 
 parts:
   ubuntu-desktop-init:
@@ -47,12 +56,24 @@ parts:
       sed -i 's|/usr/share|/var/lib/snapd/hostfs/usr/share|'  packages/ubuntu_provision/lib/src/eula/eula_page.dart
 
       cd apps/ubuntu_init
+      export LD_LIBRARY_PATH=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/usr/lib:/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/lib:/snap/gnome-46-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       flutter build linux --release -v
       cp -r build/linux/*/release/bundle/* $CRAFT_PART_INSTALL/bin/
 
     stage-packages:
       - pciutils
       - util-linux
+    build-environment:
+      - SNAPCRAFT_GNOME_SDK: /snap/gnome-46-2404-sdk/current/
+      - PATH: /snap/gnome-46-2404-sdk/current/usr/bin${PATH:+:$PATH}
+      - XDG_DATA_DIRS: $CRAFT_STAGE/usr/share:/snap/gnome-46-2404-sdk/current/usr/share:/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}
+      - PKG_CONFIG_PATH: /snap/gnome-46-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:/snap/gnome-46-2404-sdk/current/usr/lib/pkgconfig:/snap/gnome-46-2404-sdk/current/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - GETTEXTDATADIRS: /snap/gnome-46-2404-sdk/current/usr/share/gettext-current${GETTEXTDATADIRS:+:$GETTEXTDATADIRS}
+      - GDK_PIXBUF_MODULE_FILE: /snap/gnome-46-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gdk-pixbuf-current/loaders.cache
+      - ACLOCAL_PATH: /snap/gnome-46-2404-sdk/current/usr/share/aclocal${ACLOCAL_PATH:+:$ACLOCAL_PATH}
+      - PYTHONPATH: /snap/gnome-46-2404-sdk/current/usr/lib/python3.10:/snap/gnome-46-2404-sdk/current/usr/lib/python3/dist-packages:/snap/gnome-46-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gobject-introspection${PYTHONPATH:+:$PYTHONPATH}
+      - GI_TYPELIB_PATH: /snap/gnome-46-2404-sdk/current/usr/lib/girepository-1.0:/snap/gnome-46-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}
+      - CMAKE_PREFIX_PATH: $CRAFT_STAGE/usr:/snap/gnome-46-2404-sdk/current/usr${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}
 
   metadata:
     plugin: nil
@@ -94,6 +115,55 @@ parts:
       - zip
     override-prime: ""
 
+  gnome-gpu-wrapper:
+    source: /snap/snapcraft/19108/share/snapcraft/extensions/gpu/command-chain
+    plugin: make
+    make-parameters:
+      - GPU_INTERFACE=gpu-2404
+
+  gnome-gpu-cleanup:
+    after: [ubuntu-desktop-init, metadata, flutter-git]
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: nil
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404
+      mkdir -p "${CRAFT_PRIME}/gpu-2404"
+
+  gnome-sdk:
+    source: /snap/snapcraft/19108/share/snapcraft/extensions/desktop/command-chain
+    plugin: make
+    build-snaps:
+      - gnome-46-2404-sdk
+    override-build: |
+      make -j1 install DESTDIR="$CRAFT_PART_INSTALL"
+
+assumes:
+  - snapd2.43
+
+hooks:
+  configure:
+    command-chain:
+      - snap/command-chain/hooks-configure-fonts
+    plugs:
+      - desktop
+
+layout:
+  /usr/share/libdrm:
+    bind: $SNAP/gpu-2404/libdrm
+  /usr/share/drirc.d:
+    symlink: $SNAP/gpu-2404/drirc.d
+  /usr/share/X11/XErrorDB:
+    symlink: $SNAP/gpu-2404/X11/XErrorDB
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.0:
+    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1:
+    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1
+  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy:
+    bind: $SNAP/gnome-platform/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy
+  /usr/share/xml/iso-codes:
+    bind: $SNAP/gnome-platform/usr/share/xml/iso-codes
+
 plugs:
   run-provd-socket:
     interface: system-files
@@ -107,6 +177,33 @@ plugs:
     interface: system-files
     write:
       - /var/log/installer
+  desktop:
+    interface: desktop
+    mount-host-font-cache: false
+  gpu-2404:
+    interface: content
+    target: $SNAP/gpu-2404
+    default-provider: mesa-2404
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/data-dir/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/data-dir/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/data-dir/sounds
+    default-provider: gtk-common-themes
+  gnome-46-2404:
+    interface: content
+    target: $SNAP/gnome-platform
+    default-provider: gnome-46-2404
+
+environment:
+  SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform
+  GTK_USE_PORTAL: '1'
 
 slots:
   dbus-name:
