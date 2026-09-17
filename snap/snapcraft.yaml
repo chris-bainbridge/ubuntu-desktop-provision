@@ -6,10 +6,10 @@ description: |
   It comprises a Flutter-based UI and a go backend packaged separately as a deb.
 grade: stable
 confinement: strict
-base: core22
-architectures:
-  - build-on: amd64
-  - build-on: arm64
+base: core24
+platforms:
+  amd64:
+  arm64:
 
 apps:
   ubuntu-desktop-init:
@@ -31,7 +31,7 @@ parts:
     after: [flutter-git]
     plugin: nil
     source: .
-    source-commit: &commit-ref 5c13df17c303d8e53c877d7b13466bba2a944ba7
+    source-commit: &commit-ref 6623407beba8f4d8cb0f331a232d0a7d271a9f7a
     source-type: git
     override-build: |
       set -eux
@@ -46,7 +46,7 @@ parts:
       # patch EULA directory path
       sed -i 's|/usr/share|/var/lib/snapd/hostfs/usr/share|'  packages/ubuntu_provision/lib/src/eula/eula_page.dart
 
-      cd packages/ubuntu_init
+      cd apps/ubuntu_init
       flutter build linux --release -v
       cp -r build/linux/*/release/bundle/* $CRAFT_PART_INSTALL/bin/
 
