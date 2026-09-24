@@ -115,7 +115,7 @@ parts:
     override-prime: ""
 
   gnome-sdk:
-    source: /snap/snapcraft/19108/share/snapcraft/extensions/desktop/command-chain
+    source: /snap/snapcraft/19149/share/snapcraft/extensions/desktop/command-chain
     plugin: make
     build-snaps:
       - gnome-46-2404-sdk
