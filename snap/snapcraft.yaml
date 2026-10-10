@@ -39,7 +39,6 @@ parts:
     after: [flutter-git]
     plugin: nil
     source: .
-    source-commit: &commit-ref 6623407beba8f4d8cb0f331a232d0a7d271a9f7a
     source-type: git
     override-build: |
       set -eux
@@ -85,7 +84,6 @@ parts:
   flutter-git:
     plugin: nil
     source: .
-    source-commit: *commit-ref
     source-type: git
     override-pull: |
       # necessary when reruns using the same container
