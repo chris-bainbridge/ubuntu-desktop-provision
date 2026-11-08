@@ -11,7 +11,24 @@ permissions:
 
 jobs:
   snap:
-    runs-on: ubuntu-latest
+    # amd64 on ubuntu-latest, arm64 natively on the ubuntu-24.04-arm
+    # hosted runner (no QEMU: snapcraft builds the platform matching the
+    # host arch, and the flutter/dart toolchain builds natively on arm64).
+    # The amd64 leg is unchanged: same asset name (ubuntu-desktop-init.snap)
+    # and same artifact name (snap) as before the matrix. The arm64 leg
+    # publishes a distinct asset/artifact so the two never clobber each
+    # other on the shared rolling desktop-26-latest release.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            asset: ubuntu-desktop-init.snap
+            artifact: snap
+          - runner: ubuntu-24.04-arm
+            asset: ubuntu-desktop-init-arm64.snap
+            artifact: snap-arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: snapcore/action-build@v1
@@ -19,7 +36,7 @@ jobs:
         with:
           snapcraft-channel: edge
       - name: Normalize snap filename
-        run: cp "${{ steps.snapcraft.outputs.snap }}" ubuntu-desktop-init.snap
+        run: cp "${{ steps.snapcraft.outputs.snap }}" "${{ matrix.asset }}"
       - name: Publish to desktop-26-latest release
         if: github.event_name != 'pull_request'
         env:
@@ -29,10 +46,10 @@ jobs:
             || gh release create desktop-26-latest -R "$GITHUB_REPOSITORY" \
                  --title "desktop/26 latest snap" \
                  --notes "Rolling latest desktop/26 snap build; assets are replaced on every green build."
-          gh release upload desktop-26-latest ubuntu-desktop-init.snap -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload desktop-26-latest "${{ matrix.asset }}" -R "$GITHUB_REPOSITORY" --clobber
       - uses: actions/upload-artifact@v4
         with:
-          name: snap
-          path: ubuntu-desktop-init.snap
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.asset }}
           compression-level: 0
           retention-days: 14
