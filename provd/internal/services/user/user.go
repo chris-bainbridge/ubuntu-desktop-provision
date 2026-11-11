@@ -196,6 +196,10 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (_ 
 		return nil, status.Errorf(codes.Internal, "failed to set Hostname: %v", err)
 	}
 
+	// Carry the wizard's accessibility preferences across the
+	// ephemeral-home boundary (best-effort; see handover.go).
+	writeA11yHandover(username)
+
 	return &emptypb.Empty{}, nil
 }
 
