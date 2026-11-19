@@ -10,15 +10,25 @@
 // such channel, so this file implements one.
 //
 // The mechanism: at user creation provd records the accessibility
-// preferences and the target username under /etc/dconf (the one
-// durable location a confined provd can write, via its system-files
-// plug), and the static session handover unit baked in the desktop
-// base (usr/lib/systemd/user/ucd-a11y-handover.service) applies them
-// through the real session gsettings/dconf path at the target user's
-// first login - so gnome-settings-daemon sees the change notification
-// and actuates the reader, exactly like a GUI toggle (T25 gate-5 leg).
-// A per-user marker in $HOME/.cache keeps it one-shot, and the target
-// username check keeps later accounts unaffected.
+// preferences and the target username in the handover channel
+// /etc/dconf/channel/handover, and the static session handover unit
+// baked in the desktop base (usr/lib/systemd/user/ucd-a11y-handover
+// .service) applies them through the real session gsettings/dconf path
+// at the target user's first login - so gnome-settings-daemon sees the
+// change notification and actuates the reader, exactly like a GUI
+// toggle. A per-user marker in $HOME/.cache keeps it one-shot, and the
+// target username check keeps later accounts unaffected.
+//
+// The channel directory is created and re-enforced at boot by the
+// desktop base's usr/lib/tmpfiles.d/ucd-handover.conf as
+// root:gnome-initial-setup 1731: group-writable only for the
+// provisioning group (the wizard session's dynamic uid's only group),
+// and for every other user traverse-only (others=x) so the applying
+// side - the target user's session manager, which is not in the
+// provisioning group - can read the two recorded files by exact path.
+// The applying side re-verifies the directory and file modes and
+// allowlists the schema/key pairs before applying anything; the
+// recorded files stay world-readable (0644).
 package user
 
 import (
@@ -40,10 +50,12 @@ const (
 // Paths are vars so tests can redirect them to a temporary tree.
 var (
 	// handoverINIPath holds the wizard's accessibility preferences as
-	// a glib keyfile ([schema] sections with key=value lines).
-	handoverINIPath = "/etc/dconf/ucd-handover.ini"
+	// a glib keyfile ([schema] sections with key=value lines), inside
+	// the group-restricted handover channel (see the package comment
+	// and the desktop base's usr/lib/tmpfiles.d/ucd-handover.conf).
+	handoverINIPath = "/etc/dconf/channel/handover/ucd-handover.ini"
 	// handoverUserPath holds the username the preferences apply to.
-	handoverUserPath = "/etc/dconf/ucd-handover-user"
+	handoverUserPath = "/etc/dconf/channel/handover/ucd-handover-user"
 )
 
 // a11yHandoverKey is one GSettings key carried across the handover.
@@ -90,7 +102,11 @@ func writeA11yHandover(username string) {
 }
 
 // writeHandoverFiles writes the preferences keyfile and the target
-// username under /etc/dconf.
+// username into the handover channel. The channel directory itself is
+// the desktop base's responsibility (tmpfiles, root:gnome-initial-setup
+// 1731); the MkdirAll only covers the redirected test tree - at runtime
+// a missing channel is a write failure, logged best-effort, never
+// silently created with a weaker mode.
 func writeHandoverFiles(username string, keys []a11yHandoverKey, settings map[string]handoverSettings) error {
 	ini, err := handoverINI(keys, settings)
 	if err != nil {
