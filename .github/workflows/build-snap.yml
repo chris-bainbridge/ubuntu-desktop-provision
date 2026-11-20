@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   snap:
-    # amd64 on ubuntu-latest, arm64 natively on the ubuntu-24.04-arm
+    # amd64 on ubuntu-26.04, arm64 natively on the ubuntu-26.04-arm
     # hosted runner (no QEMU: snapcraft builds the platform matching the
     # host arch, and the flutter/dart toolchain builds natively on arm64).
     # The amd64 leg is unchanged: same asset name (ubuntu-desktop-init.snap)
@@ -22,10 +22,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-26.04
             asset: ubuntu-desktop-init.snap
             artifact: snap
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             asset: ubuntu-desktop-init-arm64.snap
             artifact: snap-arm64
     runs-on: ${{ matrix.runner }}
