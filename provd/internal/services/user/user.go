@@ -124,7 +124,7 @@ func (s *Service) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (_ 
 		if userID == 0 {
 			return
 		}
-		err = s.accounts.Call(consts.DbusAccountsPrefix+".DeleteUser", 0, userID).Err
+		err = s.accounts.Call(consts.DbusAccountsPrefix+".DeleteUser", 0, int64(userID), true).Err
 		if err != nil {
 			slog.Warn(fmt.Sprintf("error encountered when rolling back CreateUser: %v", err))
 		}
