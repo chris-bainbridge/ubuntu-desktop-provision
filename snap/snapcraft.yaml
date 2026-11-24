@@ -127,7 +127,7 @@ plugs:
   run-provd-socket:
     interface: system-files
     write:
-      - /run/gnome-initial-setup/desktop-provision/init.socket
+      - /run/gdm3/home/gnome-initial-setup/desktop-provision/init.socket
   hostfs-usr-share-desktop-provision:
     interface: system-files
     read:
